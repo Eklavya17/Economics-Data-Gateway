@@ -266,3 +266,5 @@ gateway installs, tests and deploys without Project 1 (DESIGN.md decision 54).
 - The Docker image has not been built on the development machine (no Docker there); its entry
   point is checked live by `scripts/smoke_http.py`.
 - Not yet on PyPI or in the MCP Registry ([docs/PUBLISHING.md](docs/PUBLISHING.md)).
+## Next steps
+- Work on data security by wrapping data so models who do not require seeing it do not see the data
