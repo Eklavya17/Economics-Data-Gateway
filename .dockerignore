@@ -1,0 +1,17 @@
+# Keep secrets and local state out of the build context. The Dockerfile copies only
+# pyproject.toml, README.md, src/ and scripts/; these rules are a second line of defence.
+.env
+.env.*
+!.env.example
+.venv
+.git
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+.pytest_cache
+.ruff_cache
+.state
+.claude
+data
+evals/reports
+LOCAL_SETUP_GUIDE.md

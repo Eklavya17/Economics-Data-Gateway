@@ -1,0 +1,12 @@
+.venv/
+.env
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.state/
+evals/reports/*.json
+.env.docker
+data/
+# Local-only notes (never pushed)
+LOCAL_SETUP_GUIDE.md

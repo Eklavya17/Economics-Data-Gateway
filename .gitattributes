@@ -1,0 +1,4 @@
+# Normalize line endings in the repository; Linux tooling (Docker, shells) needs LF.
+* text=auto eol=lf
+*.png binary
+*.parquet binary

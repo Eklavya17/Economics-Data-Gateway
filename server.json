@@ -1,0 +1,39 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Eklavya17/econ-gateway",
+  "description": "Live, cited U.S. economic data from BLS and FRED: jobs, wages, prices, by state and metro.",
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "econ-gateway",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "FRED_API_KEY",
+          "description": "Free FRED API key. Needed for FRED series, FRED search and the release calendar.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "BLS_API_KEY",
+          "description": "Free BLS API key. Raises the BLS limit from 25 to 500 queries a day.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "ECON_TOOLSETS",
+          "description": "Toolsets to mount, comma-separated: core, wages, regional, compute (default: all).",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+ "prompt:labor_market_snapshot": {
+  "arguments": [
+   [
+    "place",
+    false,
+    "'the United States', a state or a metro area.\n\nProvide a value matching the following JSON schema: {\"description\":\"'the United States', a state or a metro area.\",\"type\":\"string\"}. Encode non-string values as JSON."
+   ]
+  ],
+  "description": "Current state of the labor market: unemployment, jobs, pay, inflation, claims.",
+  "mime_type": null,
+  "name": "labor_market_snapshot"
+ },
+ "prompt:local_economy": {
+  "arguments": [
+   [
+    "place",
+    true,
+    "County, metro area or state, e.g. 'Travis County, TX'.\n\nProvide a value matching the following JSON schema: {\"description\":\"County, metro area or state, e.g. 'Travis County, TX'.\",\"type\":\"string\"}. Encode non-string values as JSON."
+   ]
+  ],
+  "description": "Jobs, pay by industry and unemployment for a county, metro area or state (QCEW).",
+  "mime_type": null,
+  "name": "local_economy"
+ },
+ "prompt:occupation_wages": {
+  "arguments": [
+   [
+    "occupation",
+    true,
+    "Occupation in plain words, e.g. 'registered nurses'.\n\nProvide a value matching the following JSON schema: {\"description\":\"Occupation in plain words, e.g. 'registered nurses'.\",\"type\":\"string\"}. Encode non-string values as JSON."
+   ],
+   [
+    "place",
+    false,
+    "State or metro area, e.g. 'Texas' or 'Austin, TX'.\n\nProvide a value matching the following JSON schema: {\"description\":\"State or metro area, e.g. 'Texas' or 'Austin, TX'.\",\"type\":\"string\"}. Encode non-string values as JSON."
+   ]
+  ],
+  "description": "What an occupation earns in a state or metro area (OEWS), with the U.S. median.",
+  "mime_type": null,
+  "name": "occupation_wages"
+ },
+ "prompt:real_wage_check": {
+  "arguments": [
+   [
+    "wage_measure",
+    false,
+    "Which pay to check, e.g. 'average hourly earnings, private' or 'manufacturing average hourly earnings'.\n\nProvide a value matching the following JSON schema: {\"description\":\"Which pay to check, e.g. 'average hourly earnings, private' or 'manufacturing average hourly earnings'.\",\"type\":\"string\"}. Encode non-string values as JSON."
+   ],
+   [
+    "deflator",
+    false,
+    "Price index: cpi_u (usual), cpi_w or pce."
+   ],
+   [
+    "since",
+    false,
+    "Optional start of the window, e.g. '2019' or '2020-02'.\n\nProvide a value matching the following JSON schema: {\"description\":\"Optional start of the window, e.g. '2019' or '2020-02'.\",\"type\":\"string\"}. Encode non-string values as JSON."
+   ]
+  ],
+  "description": "Are wages keeping up with inflation? Real wage growth for one pay measure.",
+  "mime_type": null,
+  "name": "real_wage_check"
+ },
+ "resource:econ://catalog": {
+  "arguments": [],
+  "description": "Every series in the gateway's curated, validated catalog (~300 series, ~15K tokens).\n\nEach entry has the series ID to pass to the data tools, its title, category, units,\nfrequency, seasonal adjustment and geography (omitted for the United States). Prefer\necon://catalog/{category} for one topic, or the search_series tool to find a series by\ndescription.",
+  "mime_type": "application/json",
+  "name": "catalog"
+ },
+ "resource:econ://methodology": {
+  "arguments": [],
+  "description": "Index of methodology notes: seasonal adjustment, revisions, OEWS, QCEW, LAUS, etc.",
+  "mime_type": "text/markdown",
+  "name": "methodology"
+ },
+ "resource:econ://releases": {
+  "arguments": [],
+  "description": "Last and next release dates of the headline BLS and BEA releases.\n\nCovers the jobs report, CPI, jobless claims, JOLTS, the ECI, state and metro\nunemployment, PPI, productivity, personal income (PCE) and GDP. No newer data exists\nbefore a release's next date.",
+  "mime_type": "application/json",
+  "name": "releases"
+ },
+ "resource:econ://status": {
+  "arguments": [],
+  "description": "Gateway version, mounted toolsets, whether API keys are configured, upstream health.\n\nHealth covers circuit-breaker state, rate-limit headroom and BLS daily quota use. Key\nvalues are never included.",
+  "mime_type": "application/json",
+  "name": "status"
+ },
+ "template:econ://catalog/{category}": {
+  "arguments": [],
+  "description": "The catalog series in one category: unemployment, wages, inflation, employment, etc.\n\nThe body lists every category with its count, so an unknown category is easy to fix.",
+  "mime_type": "application/json",
+  "name": "catalog_category"
+ },
+ "template:econ://methodology/{topic}": {
+  "arguments": [],
+  "description": "One methodology note, e.g. econ://methodology/rates-and-changes.",
+  "mime_type": "text/markdown",
+  "name": "methodology_topic"
+ },
+ "template:econ://series/{series_id}": {
+  "arguments": [],
+  "description": "One series: metadata, coverage, release schedule and latest value.\n\nCombines describe_series and get_latest for a single BLS or FRED ID, e.g.\necon://series/LNS14000000 (U.S. unemployment rate).",
+  "mime_type": "application/json",
+  "name": "series"
+ }
+}

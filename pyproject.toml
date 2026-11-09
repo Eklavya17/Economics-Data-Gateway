@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "econ-gateway"
+version = "1.0.0"
+description = "Economics Data Gateway: an MCP server giving AI assistants live, cited BLS and FRED data"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # Exact pins: the MCP protocol and FastMCP APIs move quickly (see DESIGN.md decision log).
+    "fastmcp==4.1.6",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "python-dotenv>=1.0",
+    "pandas>=2.2",
+    # Data-source clients (src/econ_gateway/sources): HTTP, parquet cache, OEWS Excel files.
+    "numpy>=1.26",
+    "requests>=2.31",
+    "pyarrow>=15",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.6", "pyright>=1.1.380"]
+# Phase 6 evals: the reference client talks to OpenAI or a local Ollama server.
+evals = ["openai>=3,<4"]
+# Phase 7 tracing: OpenTelemetry SDK + OTLP/HTTP exporter (ECON_TELEMETRY=otlp|console).
+otel = ["opentelemetry-sdk>=1.30", "opentelemetry-exporter-otlp-proto-http>=1.30"]
+
+[project.scripts]
+econ-gateway = "econ_gateway.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+# Methodology notes (econ://methodology/{topic}) and the curated catalog + reference tables.
+econ_gateway = ["methodology/*.md", "sources/reference/*.csv"]
+
+# ---------------------------------------------------------------- lint / format
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "evals"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "N", "D"]
+ignore = [
+    "D105",  # magic methods documented by their protocol
+    "D107",  # __init__ documented on the class
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]  # test names describe the behaviour under test
+
+[tool.ruff.lint.isort]
+known-first-party = ["econ_gateway", "evals"]
+
+# ---------------------------------------------------------------- types
+[tool.pyright]
+include = ["src", "tests", "evals"]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"
+
+# ---------------------------------------------------------------- tests
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]  # so tests can import the top-level evals package
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = ["live: hits real BLS/FRED endpoints (run with LIVE_TESTS=1)"]

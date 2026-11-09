@@ -1,0 +1,29 @@
+# Run the gateway over Streamable HTTP in a hardened container.
+#
+#   docker compose up --build            (from this folder)
+#
+# Put BLS_API_KEY, FRED_API_KEY and the ECON_AUTH_MODE / ECON_JWT_* settings in a file named
+# .env.docker next to this one (see docs/DEPLOYMENT.md). The server refuses to start on
+# 0.0.0.0 without authentication.
+
+services:
+  econ-gateway:
+    build:
+      context: .
+    image: econ-gateway:1.0.0
+    env_file:
+      - .env.docker
+    ports:
+      - "127.0.0.1:8000:8000"                  # publish on loopback; put a TLS proxy in front
+    volumes:
+      - econ-data:/data                         # caches, OEWS downloads, BLS quota count
+    read_only: true                             # only /data and /tmp are writable
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  econ-data: {}

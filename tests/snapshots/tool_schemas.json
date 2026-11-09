@@ -1,0 +1,2773 @@
+{
+ "compare_series": {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Rank several series on one measure, optionally against a benchmark such as CPI.\n\n## Usage\nFor \"which industries/states/groups had the biggest ...\", \"rank ...\", and \"compare A,\nB and C\" questions. Get the IDs from `search_series` (e.g. average hourly earnings for\neach industry), then rank them here instead of fetching each and sorting yourself.\n\n## Tips\n- Percent measures compare across different units; level and change measures only\n  make sense for series in the same units (`notes` warns otherwise).\n- Rates (unemployment, quits) must use change_* measures; percent changes of rates are\n  left out with a note.\n- `gap_vs_benchmark` > 0 means the series grew faster than the benchmark.\n\n## Output format\n`rows` ranked highest first: meta, rank, value, value_units, latest_period,\nlatest_value, base_period, base_value, gap_vs_benchmark. `benchmark`, `failed`,\n`notes` (comparability warnings).\n\nIMPORTANT: Read `notes` before answering, because they flag series that end in\ndifferent periods or are in incomparable units.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "benchmark_series_id": {
+     "anyOf": [
+      {
+       "pattern": "^[A-Za-z0-9_.\\-]{2,40}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Optional series computed the same way and subtracted from each row, e.g. 'CUSR0000SA0' (CPI) to compare wage growth with inflation."
+    },
+    "measure": {
+     "description": "'latest_value'; 'pct_change_year_ago' / 'change_year_ago' (vs same period a year earlier); 'pct_change_since' / 'change_since' (vs `since`). Use change_* for rates (percentage points).",
+     "enum": [
+      "latest_value",
+      "change_year_ago",
+      "pct_change_year_ago",
+      "change_since",
+      "pct_change_since"
+     ],
+     "type": "string"
+    },
+    "series_ids": {
+     "description": "2-25 series IDs from search_series to rank against each other.",
+     "items": {
+      "pattern": "^[A-Za-z0-9_.\\-]{2,40}$",
+      "type": "string"
+     },
+     "maxItems": 25,
+     "minItems": 2,
+     "type": "array"
+    },
+    "since": {
+     "anyOf": [
+      {
+       "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Required for *_since. 'YYYY' compares with that year's average; 'YYYY-MM' with that month."
+    }
+   },
+   "required": [
+    "series_ids",
+    "measure"
+   ],
+   "type": "object"
+  },
+  "output_schema": {
+   "description": "Result of ``compare_series``.\n\nAttributes:\n    measure: The measure compared.\n    since: The ``since`` argument, when used.\n    rows: Series ranked by ``value``, highest first; uncomputable rows last.\n    benchmark: The benchmark series computed the same way, when requested.\n    failed: Series that could not be fetched, with next steps.\n    notes: Comparability warnings (different units, different latest periods, rates).",
+   "properties": {
+    "benchmark": {
+     "anyOf": [
+      {
+       "description": "One series in a ``compare_series`` ranking.\n\nAttributes:\n    meta: Series metadata and citation link.\n    rank: 1 = highest ``value``; ``None`` when the measure could not be computed.\n    value: The compared measure, in ``value_units``.\n    value_units: Units of ``value``.\n    latest_period: Most recent period used.\n    latest_value: Value in ``latest_period``, in the series units.\n    base_period: Comparison period (a year earlier, or ``since``), when the measure has one.\n    base_value: Value in ``base_period`` (a yearly average when ``since`` is a year).\n    gap_vs_benchmark: ``value`` minus the benchmark's ``value``, in ``value_units``\n        (percentage points for percent measures).",
+       "properties": {
+        "base_period": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "default": null
+        },
+        "base_value": {
+         "anyOf": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "default": null
+        },
+        "gap_vs_benchmark": {
+         "anyOf": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "default": null
+        },
+        "latest_period": {
+         "type": "string"
+        },
+        "latest_value": {
+         "type": "number"
+        },
+        "meta": {
+         "description": "What a series measures and where it comes from.\n\nAttributes:\n    series_id: Official ID at the source; pass it to other tools.\n    source: Publishing system (BLS API or FRED).\n    title: Official title.\n    units: Units of the raw values.\n    frequency: Observation frequency in words.\n    seasonal_adjustment: ``SA``, ``NSA``, ``SAAR`` etc., or ``unknown``.\n    geography: Area covered, when known.\n    url: Human-readable page for the series at the source.\n    notes: Source notes (detailed format only).\n    stale_as_of: Set only when the source could not be reached and the data is the\n        gateway's cached copy: the UTC time that copy was fetched.",
+         "properties": {
+          "frequency": {
+           "description": "e.g. 'monthly', 'quarterly', 'weekly'.",
+           "type": "string"
+          },
+          "geography": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ],
+           "default": null
+          },
+          "notes": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ],
+           "default": null
+          },
+          "seasonal_adjustment": {
+           "description": "SA = seasonally adjusted, NSA = not adjusted.",
+           "type": "string"
+          },
+          "series_id": {
+           "type": "string"
+          },
+          "source": {
+           "enum": [
+            "BLS",
+            "FRED"
+           ],
+           "type": "string"
+          },
+          "stale_as_of": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ],
+           "default": null,
+           "description": "Null normally. When set, the source was unreachable and these values are the gateway's cached copy fetched at this UTC time; a newer release may exist, so say so."
+          },
+          "title": {
+           "type": "string"
+          },
+          "units": {
+           "description": "Units of the raw values, e.g. 'percent' or 'index 1982-84=100'.",
+           "type": "string"
+          },
+          "url": {
+           "description": "Cite this link when quoting the data.",
+           "type": "string"
+          }
+         },
+         "required": [
+          "series_id",
+          "source",
+          "title",
+          "units",
+          "frequency",
+          "seasonal_adjustment",
+          "url"
+         ],
+         "type": "object"
+        },
+        "rank": {
+         "anyOf": [
+          {
+           "type": "integer"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "value": {
+         "anyOf": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "value_units": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "meta",
+        "rank",
+        "value",
+        "value_units",
+        "latest_period",
+        "latest_value"
+       ],
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "failed": {
+     "items": {
+      "description": "A requested item (series, area or occupation) that could not be returned.\n\nAttributes:\n    id: The ID as requested.\n    reason: What went wrong.\n    hint: What to do next.",
+      "properties": {
+       "hint": {
+        "type": "string"
+       },
+       "id": {
+        "type": "string"
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "reason",
+       "hint"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "measure": {
+     "enum": [
+      "latest_value",
+      "change_year_ago",
+      "pct_change_year_ago",
+      "change_since",
+      "pct_change_since"
+     ],
+     "type": "string"
+    },
+    "notes": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "rows": {
+     "items": {
+      "description": "One series in a ``compare_series`` ranking.\n\nAttributes:\n    meta: Series metadata and citation link.\n    rank: 1 = highest ``value``; ``None`` when the measure could not be computed.\n    value: The compared measure, in ``value_units``.\n    value_units: Units of ``value``.\n    latest_period: Most recent period used.\n    latest_value: Value in ``latest_period``, in the series units.\n    base_period: Comparison period (a year earlier, or ``since``), when the measure has one.\n    base_value: Value in ``base_period`` (a yearly average when ``since`` is a year).\n    gap_vs_benchmark: ``value`` minus the benchmark's ``value``, in ``value_units``\n        (percentage points for percent measures).",
+      "properties": {
+       "base_period": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "base_value": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "gap_vs_benchmark": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "latest_period": {
+        "type": "string"
+       },
+       "latest_value": {
+        "type": "number"
+       },
+       "meta": {
+        "description": "What a series measures and where it comes from.\n\nAttributes:\n    series_id: Official ID at the source; pass it to other tools.\n    source: Publishing system (BLS API or FRED).\n    title: Official title.\n    units: Units of the raw values.\n    frequency: Observation frequency in words.\n    seasonal_adjustment: ``SA``, ``NSA``, ``SAAR`` etc., or ``unknown``.\n    geography: Area covered, when known.\n    url: Human-readable page for the series at the source.\n    notes: Source notes (detailed format only).\n    stale_as_of: Set only when the source could not be reached and the data is the\n        gateway's cached copy: the UTC time that copy was fetched.",
+        "properties": {
+         "frequency": {
+          "description": "e.g. 'monthly', 'quarterly', 'weekly'.",
+          "type": "string"
+         },
+         "geography": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null
+         },
+         "notes": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null
+         },
+         "seasonal_adjustment": {
+          "description": "SA = seasonally adjusted, NSA = not adjusted.",
+          "type": "string"
+         },
+         "series_id": {
+          "type": "string"
+         },
+         "source": {
+          "enum": [
+           "BLS",
+           "FRED"
+          ],
+          "type": "string"
+         },
+         "stale_as_of": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Null normally. When set, the source was unreachable and these values are the gateway's cached copy fetched at this UTC time; a newer release may exist, so say so."
+         },
+         "title": {
+          "type": "string"
+         },
+         "units": {
+          "description": "Units of the raw values, e.g. 'percent' or 'index 1982-84=100'.",
+          "type": "string"
+         },
+         "url": {
+          "description": "Cite this link when quoting the data.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "series_id",
+         "source",
+         "title",
+         "units",
+         "frequency",
+         "seasonal_adjustment",
+         "url"
+        ],
+        "type": "object"
+       },
+       "rank": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "value": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "value_units": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "meta",
+       "rank",
+       "value",
+       "value_units",
+       "latest_period",
+       "latest_value"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "since": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    }
+   },
+   "required": [
+    "measure",
+    "rows"
+   ],
+   "type": "object"
+  },
+  "toolset": "compute"
+ },
+ "describe_series": {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Explain exactly what a series measures: title, units, frequency, coverage and notes.\n\n## Usage\nUse when you need to confirm a series is the right one (definition, units, seasonal\nadjustment, date coverage) before quoting it, or to check if it is discontinued.\n\n## Output format\n`meta` (title, units, frequency, seasonal_adjustment, geography, url, notes),\n`observation_start` / `observation_end` / `last_updated` when the source provides\nthem, and `in_catalog` (true = curated and validated by this server).",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "series_id": {
+     "description": "A BLS or FRED series ID, e.g. 'LNS14000000' or 'UNRATE'.",
+     "pattern": "^[A-Za-z0-9_.\\-]{2,40}$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "series_id"
+   ],
+   "type": "object"
+  },
+  "output_schema": {
+   "description": "Result of ``describe_series``.\n\nAttributes:\n    meta: Full metadata including source notes.\n    observation_start: First period available at the source, when known.\n    observation_end: Last period available at the source, when known.\n    last_updated: When the source last updated the series, when known.\n    in_catalog: True when the series is in the gateway's curated, validated catalog.\n    release: The release that publishes the series and its last/next dates, when known.",
+   "properties": {
+    "in_catalog": {
+     "type": "boolean"
+    },
+    "last_updated": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "meta": {
+     "description": "What a series measures and where it comes from.\n\nAttributes:\n    series_id: Official ID at the source; pass it to other tools.\n    source: Publishing system (BLS API or FRED).\n    title: Official title.\n    units: Units of the raw values.\n    frequency: Observation frequency in words.\n    seasonal_adjustment: ``SA``, ``NSA``, ``SAAR`` etc., or ``unknown``.\n    geography: Area covered, when known.\n    url: Human-readable page for the series at the source.\n    notes: Source notes (detailed format only).\n    stale_as_of: Set only when the source could not be reached and the data is the\n        gateway's cached copy: the UTC time that copy was fetched.",
+     "properties": {
+      "frequency": {
+       "description": "e.g. 'monthly', 'quarterly', 'weekly'.",
+       "type": "string"
+      },
+      "geography": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "notes": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "seasonal_adjustment": {
+       "description": "SA = seasonally adjusted, NSA = not adjusted.",
+       "type": "string"
+      },
+      "series_id": {
+       "type": "string"
+      },
+      "source": {
+       "enum": [
+        "BLS",
+        "FRED"
+       ],
+       "type": "string"
+      },
+      "stale_as_of": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Null normally. When set, the source was unreachable and these values are the gateway's cached copy fetched at this UTC time; a newer release may exist, so say so."
+      },
+      "title": {
+       "type": "string"
+      },
+      "units": {
+       "description": "Units of the raw values, e.g. 'percent' or 'index 1982-84=100'.",
+       "type": "string"
+      },
+      "url": {
+       "description": "Cite this link when quoting the data.",
+       "type": "string"
+      }
+     },
+     "required": [
+      "series_id",
+      "source",
+      "title",
+      "units",
+      "frequency",
+      "seasonal_adjustment",
+      "url"
+     ],
+     "type": "object"
+    },
+    "observation_end": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "observation_start": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "release": {
+     "anyOf": [
+      {
+       "description": "The agency release that publishes a series, and when it comes out.\n\nAttributes:\n    release_id: FRED release ID (FRED's calendar covers BLS releases too).\n    name: Release name, e.g. ``Employment Situation``; ``None`` if not in the gateway's list.\n    last_release_date: Most recent release date on or before today (US Eastern).\n    next_release_date: Next scheduled release date, when FRED has published it.\n    url: FRED page for the release, with its full schedule.",
+       "properties": {
+        "last_release_date": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "default": null,
+         "description": "ISO date of the latest release on or before today."
+        },
+        "name": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "default": null
+        },
+        "next_release_date": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "default": null,
+         "description": "ISO date of the next scheduled release (most BLS releases are at 8:30 a.m. ET). Newer data than the latest period will not exist before then."
+        },
+        "release_id": {
+         "type": "integer"
+        },
+        "url": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "release_id",
+        "url"
+       ],
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    }
+   },
+   "required": [
+    "meta",
+    "in_catalog"
+   ],
+   "type": "object"
+  },
+  "toolset": "core"
+ },
+ "find_area": {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Turn a place name into an area_id and its local unemployment series IDs.\n\n## Usage\nCall before `get_occupation_wages` or `get_area_employment` (they take `area_id`).\nAlso the fastest route to local unemployment: take `laus.unemployment_rate` from the\nresult and pass it to `get_latest` or `get_series`.\n\n## Tips\n- Metros are named by their principal cities (\"Austin-Round Rock-San Marcos, TX\");\n  counties and metros can share names (Austin County, TX vs the Austin metro), so check\n  `level`.\n- `has_occupation_wages` is false for counties (OEWS does not publish them); use the metro.\n- Metro and county unemployment series are not seasonally adjusted: compare with the\n  same month a year earlier.\n\n## Output format\n`results` best first: area_id (us, state:48, metro:12420, county:48453), name, level,\nhas_occupation_wages, has_area_employment, laus (series IDs), score. `notes` flags\nambiguous matches.\n\nIMPORTANT: If `notes` says several places match closely, confirm with the user which one\nthey mean, because answering for the wrong place is worse than asking.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "level": {
+     "anyOf": [
+      {
+       "enum": [
+        "national",
+        "state",
+        "metro",
+        "county"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Restrict to 'national', 'state', 'metro' or 'county'."
+    },
+    "limit": {
+     "default": 8,
+     "maximum": 20,
+     "minimum": 1,
+     "type": "integer"
+    },
+    "query": {
+     "description": "Place name or state abbreviation: 'Texas', 'TX', 'Austin', 'Travis County', 'Chicago', 'United States'.",
+     "maxLength": 100,
+     "minLength": 2,
+     "type": "string"
+    }
+   },
+   "required": [
+    "query"
+   ],
+   "type": "object"
+  },
+  "output_schema": {
+   "description": "Result of ``find_area``.\n\nAttributes:\n    query: The query as received.\n    results: Candidates, best first.\n    notes: Guidance, e.g. when the query is ambiguous.",
+   "properties": {
+    "notes": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "query": {
+     "type": "string"
+    },
+    "results": {
+     "items": {
+      "description": "A place that matched a ``find_area`` query.\n\nAttributes:\n    area_id: Pass to ``get_occupation_wages`` / ``get_area_employment``.\n    name: Official area name.\n    level: Geographic level.\n    has_occupation_wages: Whether OEWS publishes wages for this area (not for counties).\n    has_area_employment: Whether QCEW publishes jobs and wages for this area.\n    laus: Unemployment series IDs for ``get_latest`` / ``get_series``.\n    score: Match strength (higher is better); compare candidates, not absolute values.",
+      "properties": {
+       "area_id": {
+        "type": "string"
+       },
+       "has_area_employment": {
+        "type": "boolean"
+       },
+       "has_occupation_wages": {
+        "type": "boolean"
+       },
+       "laus": {
+        "anyOf": [
+         {
+          "description": "LAUS (Local Area Unemployment Statistics) series IDs for an area; pass to ``get_latest``.\n\nAttributes:\n    unemployment_rate: Unemployment rate, percent.\n    unemployed: Number unemployed.\n    employed: Number employed (household-based).\n    labor_force: Civilian labor force.\n    seasonal_adjustment: ``SA`` for states and the nation; ``NSA`` for metros and counties.",
+          "properties": {
+           "employed": {
+            "type": "string"
+           },
+           "labor_force": {
+            "type": "string"
+           },
+           "seasonal_adjustment": {
+            "enum": [
+             "SA",
+             "NSA"
+            ],
+            "type": "string"
+           },
+           "unemployed": {
+            "type": "string"
+           },
+           "unemployment_rate": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "unemployment_rate",
+           "unemployed",
+           "employed",
+           "labor_force",
+           "seasonal_adjustment"
+          ],
+          "type": "object"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "level": {
+        "enum": [
+         "national",
+         "state",
+         "metro",
+         "county"
+        ],
+        "type": "string"
+       },
+       "name": {
+        "type": "string"
+       },
+       "score": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "area_id",
+       "name",
+       "level",
+       "has_occupation_wages",
+       "has_area_employment",
+       "score"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    }
+   },
+   "required": [
+    "query",
+    "results"
+   ],
+   "type": "object"
+  },
+  "toolset": "core"
+ },
+ "find_occupation": {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Find Standard Occupational Classification (SOC) codes for a job title.\n\n## Usage\nCall before `get_occupation_wages`, which takes SOC codes.\n\n## Tips\n- `group` tells you the level: `detailed` is one occupation (Registered Nurses);\n  `major` is a whole family (Healthcare Practitioners and Technical Occupations).\n  Pick the level the question is about.\n- \"Tech\" or \"healthcare\" questions usually mean the major group (15-0000, 29-0000).\n\n## Output format\n`results` best first: occupation_code, title, group, score.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "limit": {
+     "default": 8,
+     "maximum": 20,
+     "minimum": 1,
+     "type": "integer"
+    },
+    "query": {
+     "description": "Job title or field in plain words ('registered nurse', 'software developer', 'truck driver', 'healthcare'), or a SOC code ('29-1141').",
+     "maxLength": 100,
+     "minLength": 2,
+     "type": "string"
+    }
+   },
+   "required": [
+    "query"
+   ],
+   "type": "object"
+  },
+  "output_schema": {
+   "description": "Result of ``find_occupation``.\n\nAttributes:\n    query: The query as received.\n    results: Candidates, best first.",
+   "properties": {
+    "query": {
+     "type": "string"
+    },
+    "results": {
+     "items": {
+      "description": "An occupation that matched a ``find_occupation`` query.\n\nAttributes:\n    occupation_code: SOC code; pass to ``get_occupation_wages``.\n    title: Official SOC title.\n    group: ``total``, ``major`` (e.g. all healthcare practitioners), ``minor``, ``broad`` or\n        ``detailed`` (a single occupation such as Registered Nurses).\n    score: Match strength (higher is better).",
+      "properties": {
+       "group": {
+        "type": "string"
+       },
+       "occupation_code": {
+        "type": "string"
+       },
+       "score": {
+        "type": "number"
+       },
+       "title": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "occupation_code",
+       "title",
+       "group",
+       "score"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    }
+   },
+   "required": [
+    "query",
+    "results"
+   ],
+   "type": "object"
+  },
+  "toolset": "wages"
+ },
+ "get_area_employment": {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Get jobs, establishments and average weekly wages for counties, metros or states.\n\n## Usage\nFor local job counts and pay by industry (\"how many people work in health care in\nTravis County?\", \"which industries employ the most in Austin?\"). Data comes from\nQCEW, a near-census of employers; it is the only source here with county detail.\nFor monthly local unemployment use `find_area` \u2192 `laus` series \u2192 `get_latest`.\n\n## Tips\n- QCEW lags about 5-6 months; `reference_period` says which quarter you got.\n- It is not seasonally adjusted: use the *_year_ago fields for change, not the\n  previous quarter.\n- `disclosed: false` means BLS suppressed the cell; never treat it as zero.\n\n## Output format\n`reference_period` (e.g. 2026-Q1); `rows` (area, industry, ownership, disclosed,\nestablishments, employment, avg_weekly_wage, employment_change_year_ago,\nemployment_pct_change_year_ago, avg_weekly_wage_pct_change_year_ago); `failed`;\n`notes`; `sources`.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "area_ids": {
+     "description": "1-10 places from find_area, e.g. ['county:48453', 'metro:12420'].",
+     "items": {
+      "pattern": "^(us|state:\\d{2}|metro:\\d{5}|county:\\d{5})$",
+      "type": "string"
+     },
+     "maxItems": 10,
+     "minItems": 1,
+     "type": "array"
+    },
+    "industries": {
+     "default": [
+      "total"
+     ],
+     "description": "Industry slices. 'total' = all jobs; 'private'; government by level; or sectors such as 'construction', 'manufacturing', 'health_care_social_assistance', 'leisure_hospitality'. List several for a breakdown.",
+     "items": {
+      "enum": [
+       "total",
+       "private",
+       "federal_government",
+       "state_government",
+       "local_government",
+       "goods_producing",
+       "service_providing",
+       "natural_resources_mining",
+       "construction",
+       "manufacturing",
+       "trade_transportation_utilities",
+       "retail_trade",
+       "information",
+       "financial_activities",
+       "professional_business_services",
+       "professional_scientific_technical",
+       "education_health_services",
+       "health_care_social_assistance",
+       "leisure_hospitality",
+       "accommodation_food_services",
+       "other_services"
+      ],
+      "type": "string"
+     },
+     "maxItems": 15,
+     "minItems": 1,
+     "type": "array"
+    },
+    "quarter": {
+     "anyOf": [
+      {
+       "maximum": 4,
+       "minimum": 1,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "1-4; give with year. Omit both for the latest."
+    },
+    "year": {
+     "anyOf": [
+      {
+       "maximum": 2100,
+       "minimum": 2015,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Calendar year; give with quarter."
+    }
+   },
+   "required": [
+    "area_ids"
+   ],
+   "type": "object"
+  },
+  "output_schema": {
+   "description": "Result of ``get_area_employment``.\n\nAttributes:\n    reference_period: Quarter covered, e.g. ``2026-Q1``.\n    rows: One row per area \u00d7 industry.\n    failed: Requested areas or industries that could not be returned, with next steps.\n    notes: How to read QCEW figures (coverage, seasonality, ownership choices).\n    sources: Exact QCEW files the figures came from.",
+   "properties": {
+    "failed": {
+     "items": {
+      "description": "A requested item (series, area or occupation) that could not be returned.\n\nAttributes:\n    id: The ID as requested.\n    reason: What went wrong.\n    hint: What to do next.",
+      "properties": {
+       "hint": {
+        "type": "string"
+       },
+       "id": {
+        "type": "string"
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "reason",
+       "hint"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "notes": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "reference_period": {
+     "type": "string"
+    },
+    "rows": {
+     "items": {
+      "description": "QCEW establishments, jobs and pay for one area \u00d7 industry in one quarter.\n\nAttributes:\n    area_id: Area (see ``find_area``).\n    area_name: Official area name.\n    industry: Industry key as requested.\n    industry_title: What the key covers.\n    ownership: ``total``, ``private``, ``federal``, ``state`` or ``local`` government.\n    disclosed: False when BLS suppresses the cell for confidentiality; all values are then\n        ``None`` (the source reports zeros, which are *not* real zeros).\n    establishments: Establishments in the quarter.\n    employment: Jobs in the third month of the quarter.\n    avg_weekly_wage: Average weekly wage, dollars.\n    employment_change_year_ago: Change in jobs vs the same quarter a year earlier.\n    employment_pct_change_year_ago: Percent change in jobs vs a year earlier.\n    avg_weekly_wage_pct_change_year_ago: Percent change in average weekly wage, year on year.",
+      "properties": {
+       "area_id": {
+        "type": "string"
+       },
+       "area_name": {
+        "type": "string"
+       },
+       "avg_weekly_wage": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "avg_weekly_wage_pct_change_year_ago": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "disclosed": {
+        "type": "boolean"
+       },
+       "employment": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "employment_change_year_ago": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "employment_pct_change_year_ago": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "establishments": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "industry": {
+        "type": "string"
+       },
+       "industry_title": {
+        "type": "string"
+       },
+       "ownership": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "area_id",
+       "area_name",
+       "industry",
+       "industry_title",
+       "ownership",
+       "disclosed"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "sources": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    }
+   },
+   "required": [
+    "reference_period",
+    "rows"
+   ],
+   "type": "object"
+  },
+  "toolset": "regional"
+ },
+ "get_latest": {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Get the most recent published value of each series, with standard comparisons.\n\n## Usage\nBest tool for \"what is the current ...\" questions. For trends or charts over time,\nuse `get_series` instead.\n\n## Tips\n- For rates (units in percent) changes are in percentage points and the percent-change\n  fields are null on purpose.\n- `latest_period` is the latest data the agency has published, which may be one or\n  two months behind today; say so when answering.\n- For prices, `pct_change_from_year_ago` on an index (e.g. CPI) is the inflation rate.\n- Also the best tool for \"how has X changed over the past year\": the year-ago fields\n  give the change for the latest period.\n- A null year-ago value means the agency never published that period (e.g. October\n  2025). `notes` names it and the nearest published periods.\n\n## Output format\nPer series: `meta` (with citation url), latest_period, latest_value, preliminary,\nprevious_period/value, change_from_previous, pct_change_from_previous,\nyear_ago_period/value, change_from_year_ago, pct_change_from_year_ago, change_units,\nnotes. `failed` lists IDs that returned nothing, with a next step.\n\nIMPORTANT: Quote the period and cite `meta.url` with each number, because readers need\nto know which release the figure comes from. If a comparison period was not published,\nsay so, and never present a neighbouring period's value under its label.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "series_ids": {
+     "description": "1-20 series IDs from search_series, e.g. ['LNS14000000', 'CPIAUCSL'].",
+     "items": {
+      "pattern": "^[A-Za-z0-9_.\\-]{2,40}$",
+      "type": "string"
+     },
+     "maxItems": 20,
+     "minItems": 1,
+     "type": "array"
+    }
+   },
+   "required": [
+    "series_ids"
+   ],
+   "type": "object"
+  },
+  "output_schema": {
+   "description": "Result of ``get_latest``.\n\nAttributes:\n    results: One entry per series with data.\n    failed: Requested series that could not be returned, with next steps.\n    retrieved_at: UTC time the data was assembled.",
+   "properties": {
+    "failed": {
+     "items": {
+      "description": "A requested item (series, area or occupation) that could not be returned.\n\nAttributes:\n    id: The ID as requested.\n    reason: What went wrong.\n    hint: What to do next.",
+      "properties": {
+       "hint": {
+        "type": "string"
+       },
+       "id": {
+        "type": "string"
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "reason",
+       "hint"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "results": {
+     "items": {
+      "description": "Most recent value of a series with standard comparisons.\n\nFor rates (units in percent) the percent-change fields are ``None``: changes in a rate are\nreported in percentage points via the ``change_*`` fields.\n\nAttributes:\n    meta: Series metadata and citation link.\n    latest_period: Period of the latest available value.\n    latest_value: Latest value, in the series units.\n    preliminary: True when the latest value is preliminary.\n    previous_period: The period before the latest one.\n    previous_value: Value in the previous period.\n    change_from_previous: ``latest - previous``, in units (percentage points for rates).\n    pct_change_from_previous: Percent change from the previous period (``None`` for rates).\n    year_ago_period: Same period one year earlier.\n    year_ago_value: Value one year earlier.\n    change_from_year_ago: ``latest - year_ago``, in units (percentage points for rates).\n    pct_change_from_year_ago: Percent change over the year (``None`` for rates).\n    change_units: Units of the ``change_*`` fields.\n    notes: Explanations for missing comparisons, e.g. a period the agency never published.",
+      "properties": {
+       "change_from_previous": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "change_from_year_ago": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "change_units": {
+        "type": "string"
+       },
+       "latest_period": {
+        "type": "string"
+       },
+       "latest_value": {
+        "type": "number"
+       },
+       "meta": {
+        "description": "What a series measures and where it comes from.\n\nAttributes:\n    series_id: Official ID at the source; pass it to other tools.\n    source: Publishing system (BLS API or FRED).\n    title: Official title.\n    units: Units of the raw values.\n    frequency: Observation frequency in words.\n    seasonal_adjustment: ``SA``, ``NSA``, ``SAAR`` etc., or ``unknown``.\n    geography: Area covered, when known.\n    url: Human-readable page for the series at the source.\n    notes: Source notes (detailed format only).\n    stale_as_of: Set only when the source could not be reached and the data is the\n        gateway's cached copy: the UTC time that copy was fetched.",
+        "properties": {
+         "frequency": {
+          "description": "e.g. 'monthly', 'quarterly', 'weekly'.",
+          "type": "string"
+         },
+         "geography": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null
+         },
+         "notes": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null
+         },
+         "seasonal_adjustment": {
+          "description": "SA = seasonally adjusted, NSA = not adjusted.",
+          "type": "string"
+         },
+         "series_id": {
+          "type": "string"
+         },
+         "source": {
+          "enum": [
+           "BLS",
+           "FRED"
+          ],
+          "type": "string"
+         },
+         "stale_as_of": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Null normally. When set, the source was unreachable and these values are the gateway's cached copy fetched at this UTC time; a newer release may exist, so say so."
+         },
+         "title": {
+          "type": "string"
+         },
+         "units": {
+          "description": "Units of the raw values, e.g. 'percent' or 'index 1982-84=100'.",
+          "type": "string"
+         },
+         "url": {
+          "description": "Cite this link when quoting the data.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "series_id",
+         "source",
+         "title",
+         "units",
+         "frequency",
+         "seasonal_adjustment",
+         "url"
+        ],
+        "type": "object"
+       },
+       "notes": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "pct_change_from_previous": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "pct_change_from_year_ago": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "preliminary": {
+        "type": "boolean"
+       },
+       "previous_period": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "previous_value": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "year_ago_period": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "year_ago_value": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       }
+      },
+      "required": [
+       "meta",
+       "latest_period",
+       "latest_value",
+       "preliminary",
+       "change_units"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "retrieved_at": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "results",
+    "retrieved_at"
+   ],
+   "type": "object"
+  },
+  "toolset": "core"
+ },
+ "get_occupation_wages": {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Get official employment and wages for occupations by state or metro (BLS OEWS).\n\n## Usage\n- Specific places: `occupation_codes` + `area_ids` (from `find_area`).\n- Rankings (\"highest-paying metros for nurses\"): `occupation_codes` + `rank_across`.\n- National only: `occupation_codes` alone.\nNational figures for the same occupations are always included in `national`, so\ncomparisons with the U.S. need no extra call.\n\n## Tips\n- Median is the typical worker; mean is pulled up by high earners. Prefer median\n  unless asked for average.\n- Figures are for May of `reference_period`, the latest OEWS survey; say so (e.g.\n  \"as of May 2025\") rather than \"last year\" or \"currently\".\n- For trends in pay over time use `search_series` / `get_series` (e.g. average hourly\n  earnings); OEWS is a yearly snapshot.\n\n## Output format\n`reference_period`; `rows` (area_id, area_name, occupation_code, occupation,\nemployment, jobs_per_1000, location_quotient, hourly/annual mean and median, annual\np10/p90, annual_only, top_coded); `national`; `failed`; `notes`; `sources`.\n\nIMPORTANT: Never state a number for a field listed in `top_coded`; say it is at or above\nthe OEWS reporting cap, because BLS does not publish the exact value.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "area_ids": {
+     "anyOf": [
+      {
+       "items": {
+        "pattern": "^(us|state:\\d{2}|metro:\\d{5}|county:\\d{5})$",
+        "type": "string"
+       },
+       "maxItems": 25,
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Specific places from find_area, e.g. ['state:48', 'metro:12420']. Omit, with no rank_across, for national figures only."
+    },
+    "limit": {
+     "default": 15,
+     "description": "Top areas kept per occupation when ranking.",
+     "maximum": 60,
+     "minimum": 1,
+     "type": "integer"
+    },
+    "occupation_codes": {
+     "description": "1-5 SOC codes from find_occupation, e.g. ['29-1141'].",
+     "items": {
+      "pattern": "^\\d{2}-\\d{4}$",
+      "type": "string"
+     },
+     "maxItems": 5,
+     "minItems": 1,
+     "type": "array"
+    },
+    "rank_across": {
+     "anyOf": [
+      {
+       "enum": [
+        "states",
+        "metros"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Rank every 'states' or 'metros' instead of listing area_ids."
+    },
+    "response_format": {
+     "default": "concise",
+     "description": "'detailed' adds 25th and 75th percentile annual wages.",
+     "enum": [
+      "concise",
+      "detailed"
+     ],
+     "type": "string"
+    },
+    "sort_by": {
+     "default": "annual_median",
+     "description": "Measure used to rank when rank_across is set.",
+     "enum": [
+      "annual_median",
+      "annual_mean",
+      "hourly_median",
+      "hourly_mean",
+      "employment",
+      "location_quotient"
+     ],
+     "type": "string"
+    },
+    "year": {
+     "anyOf": [
+      {
+       "maximum": 2100,
+       "minimum": 2015,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "OEWS May reference year. Omit for the latest published."
+    }
+   },
+   "required": [
+    "occupation_codes"
+   ],
+   "type": "object"
+  },
+  "output_schema": {
+   "description": "Result of ``get_occupation_wages``.\n\nAttributes:\n    reference_period: OEWS reference period, e.g. ``May 2025``.\n    rows: Requested occupation \u00d7 area rows (ranked by ``sort_by`` when ranking).\n    national: National rows for the same occupations, for comparison.\n    failed: Requested combinations that could not be returned, with next steps.\n    notes: How to read the figures (reference period, wage definitions, ranking scope).\n    sources: Citation links for the occupations returned.",
+   "properties": {
+    "failed": {
+     "items": {
+      "description": "A requested item (series, area or occupation) that could not be returned.\n\nAttributes:\n    id: The ID as requested.\n    reason: What went wrong.\n    hint: What to do next.",
+      "properties": {
+       "hint": {
+        "type": "string"
+       },
+       "id": {
+        "type": "string"
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "reason",
+       "hint"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "national": {
+     "items": {
+      "description": "OEWS employment and wages for one occupation in one area.\n\nDollar fields are ``None`` when not published; ``top_coded`` lists fields whose true value is\nat or above the OEWS reporting cap (the source does not publish the number).\n\nAttributes:\n    area_id: Area (see ``find_area``).\n    area_name: Official area name.\n    occupation_code: SOC code.\n    occupation: SOC title.\n    employment: Estimated jobs in the occupation, rounded by BLS.\n    jobs_per_1000: Occupation jobs per 1,000 jobs in the area.\n    location_quotient: Concentration vs the nation (1.0 = same share; >1 = more concentrated).\n    hourly_mean: Mean hourly wage, dollars.\n    hourly_median: Median hourly wage, dollars.\n    annual_mean: Mean annual wage, dollars.\n    annual_median: Median annual wage, dollars.\n    annual_p10: 10th-percentile annual wage, dollars.\n    annual_p25: 25th-percentile annual wage, dollars (detailed format).\n    annual_p75: 75th-percentile annual wage, dollars (detailed format).\n    annual_p90: 90th-percentile annual wage, dollars.\n    annual_only: True when BLS publishes only annual wages (e.g. teachers); hourly is ``None``.\n    top_coded: Fields at or above the OEWS cap.",
+      "properties": {
+       "annual_mean": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "annual_median": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "annual_only": {
+        "default": false,
+        "type": "boolean"
+       },
+       "annual_p10": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "annual_p25": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "annual_p75": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "annual_p90": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "area_id": {
+        "type": "string"
+       },
+       "area_name": {
+        "type": "string"
+       },
+       "employment": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "hourly_mean": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "hourly_median": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "jobs_per_1000": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "location_quotient": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "occupation": {
+        "type": "string"
+       },
+       "occupation_code": {
+        "type": "string"
+       },
+       "top_coded": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       }
+      },
+      "required": [
+       "area_id",
+       "area_name",
+       "occupation_code",
+       "occupation"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "notes": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "reference_period": {
+     "type": "string"
+    },
+    "rows": {
+     "items": {
+      "description": "OEWS employment and wages for one occupation in one area.\n\nDollar fields are ``None`` when not published; ``top_coded`` lists fields whose true value is\nat or above the OEWS reporting cap (the source does not publish the number).\n\nAttributes:\n    area_id: Area (see ``find_area``).\n    area_name: Official area name.\n    occupation_code: SOC code.\n    occupation: SOC title.\n    employment: Estimated jobs in the occupation, rounded by BLS.\n    jobs_per_1000: Occupation jobs per 1,000 jobs in the area.\n    location_quotient: Concentration vs the nation (1.0 = same share; >1 = more concentrated).\n    hourly_mean: Mean hourly wage, dollars.\n    hourly_median: Median hourly wage, dollars.\n    annual_mean: Mean annual wage, dollars.\n    annual_median: Median annual wage, dollars.\n    annual_p10: 10th-percentile annual wage, dollars.\n    annual_p25: 25th-percentile annual wage, dollars (detailed format).\n    annual_p75: 75th-percentile annual wage, dollars (detailed format).\n    annual_p90: 90th-percentile annual wage, dollars.\n    annual_only: True when BLS publishes only annual wages (e.g. teachers); hourly is ``None``.\n    top_coded: Fields at or above the OEWS cap.",
+      "properties": {
+       "annual_mean": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "annual_median": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "annual_only": {
+        "default": false,
+        "type": "boolean"
+       },
+       "annual_p10": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "annual_p25": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "annual_p75": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "annual_p90": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "area_id": {
+        "type": "string"
+       },
+       "area_name": {
+        "type": "string"
+       },
+       "employment": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "hourly_mean": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "hourly_median": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "jobs_per_1000": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "location_quotient": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "occupation": {
+        "type": "string"
+       },
+       "occupation_code": {
+        "type": "string"
+       },
+       "top_coded": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       }
+      },
+      "required": [
+       "area_id",
+       "area_name",
+       "occupation_code",
+       "occupation"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "sources": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    }
+   },
+   "required": [
+    "reference_period",
+    "rows"
+   ],
+   "type": "object"
+  },
+  "toolset": "wages"
+ },
+ "get_series": {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Get historical observations for one or more series, optionally transformed.\n\n## Usage\nUse for trends, comparisons over time, and \"since <year>\" questions. For a single\ncurrent value use `get_latest`. Several IDs are fetched in one call; compare series\nwith the same units and frequency.\n\n## Tips\n- Do the arithmetic here with `transform` instead of computing it yourself.\n- Omit `end_date` for current data. Never guess the latest month: it is in\n  `latest_available`, and `notes` says when `end_date` cut off newer data.\n- A null point means the agency never published that period; `notes` names such gaps.\n- Values marked in `preliminary_periods` are subject to revision.\n\n## Output format\nPer series: `meta`, `transform`, `value_units`, `points` ([period, value], oldest\nfirst) or `observations` (detailed), `latest_available`, `returned`, `available`,\n`truncated`. `failed` lists IDs that returned nothing; `notes` explains caps,\nquestionable transforms, unpublished periods and data cut off by `end_date`.\n\nIMPORTANT: If `truncated` is true you are missing older data; narrow `start_date` or\nraise `max_points` rather than describing the shortened window as the full history.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "end_date": {
+     "anyOf": [
+      {
+       "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Last period, same formats. Default: latest available."
+    },
+    "max_points": {
+     "default": 60,
+     "description": "Most recent observations kept per series.",
+     "maximum": 500,
+     "minimum": 1,
+     "type": "integer"
+    },
+    "response_format": {
+     "default": "concise",
+     "description": "'concise' = [period, value] pairs (default, fewer tokens); 'detailed' adds dates, per-observation footnotes and source notes.",
+     "enum": [
+      "concise",
+      "detailed"
+     ],
+     "type": "string"
+    },
+    "series_ids": {
+     "description": "1-10 series IDs from search_series.",
+     "items": {
+      "pattern": "^[A-Za-z0-9_.\\-]{2,40}$",
+      "type": "string"
+     },
+     "maxItems": 10,
+     "minItems": 1,
+     "type": "array"
+    },
+    "start_date": {
+     "anyOf": [
+      {
+       "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Start: 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'. Default: 5 years ago."
+    },
+    "transform": {
+     "default": "level",
+     "description": "'level' = values as published; 'pct_change_year_ago' = % change vs the same period a year earlier (inflation from a price index, wage growth); 'pct_change_prior_period' = % change vs previous period; 'change_year_ago' / 'change_prior_period' = difference in units (use these for rates: percentage points).",
+     "enum": [
+      "level",
+      "pct_change_year_ago",
+      "pct_change_prior_period",
+      "change_year_ago",
+      "change_prior_period"
+     ],
+     "type": "string"
+    }
+   },
+   "required": [
+    "series_ids"
+   ],
+   "type": "object"
+  },
+  "output_schema": {
+   "description": "Result of ``get_series``.\n\nAttributes:\n    results: One entry per series returned.\n    failed: Requested series that could not be returned, with next steps.\n    notes: Warnings about the request, e.g. size limits or a misleading transform.\n    retrieved_at: UTC time the data was assembled.",
+   "properties": {
+    "failed": {
+     "items": {
+      "description": "A requested item (series, area or occupation) that could not be returned.\n\nAttributes:\n    id: The ID as requested.\n    reason: What went wrong.\n    hint: What to do next.",
+      "properties": {
+       "hint": {
+        "type": "string"
+       },
+       "id": {
+        "type": "string"
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "reason",
+       "hint"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "notes": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "results": {
+     "items": {
+      "description": "Observations for one series, possibly transformed and truncated.\n\nAttributes:\n    meta: Series metadata and citation link.\n    transform: Transform applied to the raw values.\n    value_units: Units of the returned values after the transform.\n    points: Concise format: ``[period, value]`` pairs, oldest first.\n    observations: Detailed format: full observation records, oldest first.\n    preliminary_periods: Periods the source marks preliminary.\n    latest_available: Latest period with data at the source, regardless of the window asked for.\n    returned: Number of observations returned.\n    available: Observations in the requested window before truncation.\n    truncated: True when older observations were dropped to respect size limits.",
+      "properties": {
+       "available": {
+        "type": "integer"
+       },
+       "latest_available": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "meta": {
+        "description": "What a series measures and where it comes from.\n\nAttributes:\n    series_id: Official ID at the source; pass it to other tools.\n    source: Publishing system (BLS API or FRED).\n    title: Official title.\n    units: Units of the raw values.\n    frequency: Observation frequency in words.\n    seasonal_adjustment: ``SA``, ``NSA``, ``SAAR`` etc., or ``unknown``.\n    geography: Area covered, when known.\n    url: Human-readable page for the series at the source.\n    notes: Source notes (detailed format only).\n    stale_as_of: Set only when the source could not be reached and the data is the\n        gateway's cached copy: the UTC time that copy was fetched.",
+        "properties": {
+         "frequency": {
+          "description": "e.g. 'monthly', 'quarterly', 'weekly'.",
+          "type": "string"
+         },
+         "geography": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null
+         },
+         "notes": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null
+         },
+         "seasonal_adjustment": {
+          "description": "SA = seasonally adjusted, NSA = not adjusted.",
+          "type": "string"
+         },
+         "series_id": {
+          "type": "string"
+         },
+         "source": {
+          "enum": [
+           "BLS",
+           "FRED"
+          ],
+          "type": "string"
+         },
+         "stale_as_of": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Null normally. When set, the source was unreachable and these values are the gateway's cached copy fetched at this UTC time; a newer release may exist, so say so."
+         },
+         "title": {
+          "type": "string"
+         },
+         "units": {
+          "description": "Units of the raw values, e.g. 'percent' or 'index 1982-84=100'.",
+          "type": "string"
+         },
+         "url": {
+          "description": "Cite this link when quoting the data.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "series_id",
+         "source",
+         "title",
+         "units",
+         "frequency",
+         "seasonal_adjustment",
+         "url"
+        ],
+        "type": "object"
+       },
+       "observations": {
+        "anyOf": [
+         {
+          "items": {
+           "description": "One data point (detailed format).\n\nAttributes:\n    period: Readable period label: ``2026-09``, ``2026-Q3``, ``2026``, or a date (weekly).\n    date: ISO date of the period start (week-ending date for weekly series).\n    value: Value in the series units, or in the transform's units; ``None`` when unavailable.\n    preliminary: True when the source marks the value preliminary (subject to revision).\n    footnotes: Source footnotes for this observation.",
+           "properties": {
+            "date": {
+             "type": "string"
+            },
+            "footnotes": {
+             "anyOf": [
+              {
+               "type": "string"
+              },
+              {
+               "type": "null"
+              }
+             ],
+             "default": null
+            },
+            "period": {
+             "type": "string"
+            },
+            "preliminary": {
+             "default": false,
+             "type": "boolean"
+            },
+            "value": {
+             "anyOf": [
+              {
+               "type": "number"
+              },
+              {
+               "type": "null"
+              }
+             ]
+            }
+           },
+           "required": [
+            "period",
+            "date",
+            "value"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "points": {
+        "anyOf": [
+         {
+          "items": {
+           "maxItems": 2,
+           "minItems": 2,
+           "prefixItems": [
+            {
+             "type": "string"
+            },
+            {
+             "anyOf": [
+              {
+               "type": "number"
+              },
+              {
+               "type": "null"
+              }
+             ]
+            }
+           ],
+           "type": "array"
+          },
+          "type": "array"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "preliminary_periods": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "returned": {
+        "type": "integer"
+       },
+       "transform": {
+        "enum": [
+         "level",
+         "pct_change_year_ago",
+         "pct_change_prior_period",
+         "change_year_ago",
+         "change_prior_period"
+        ],
+        "type": "string"
+       },
+       "truncated": {
+        "type": "boolean"
+       },
+       "value_units": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "meta",
+       "transform",
+       "value_units",
+       "latest_available",
+       "returned",
+       "available",
+       "truncated"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "retrieved_at": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "results",
+    "retrieved_at"
+   ],
+   "type": "object"
+  },
+  "toolset": "core"
+ },
+ "real_wage_growth": {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Are wages keeping up with inflation? Inflation-adjusted growth of a wage series.\n\n## Usage\nFor \"real wages\", \"purchasing power\" and \"are wages keeping up with prices\"\nquestions. Find the wage series with `search_series` first (\"average hourly\nearnings manufacturing\", \"employment cost index wages\").\n\n## Tips\n- `latest` gives the year-over-year nominal, inflation and real growth for the most\n  recent period; `window` gives the cumulative change since `start_date`. Use\n  `start_date` for \"since 2019\" or \"since the pandemic\" questions.\n- The price index is matched to the wage series' seasonal adjustment and frequency\n  automatically; `notes` says what was done.\n- Real growth is exact, (1 + wage growth) / (1 + inflation) - 1, so it can differ from\n  a simple subtraction by a few hundredths.\n\n## Output format\n`wage`, `deflator` (metadata with citation urls), `frequency`, `base_period`,\n`latest` (period, nominal_wage, nominal/inflation/real pct change year ago, real_wage),\n`real_wage_rising`, `window` (cumulative changes), `points`, `truncated`, `notes`.\n\nIMPORTANT: Cite both `wage.url` and `deflator.url`, because the answer depends on both\nseries.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "deflator": {
+     "default": "cpi_u",
+     "description": "'cpi_u' (all urban consumers, the usual choice), 'cpi_w' (urban wage earners, used for Social Security), or 'pce' (the Fed's preferred index).",
+     "enum": [
+      "cpi_u",
+      "cpi_w",
+      "pce"
+     ],
+     "type": "string"
+    },
+    "end_date": {
+     "anyOf": [
+      {
+       "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Window end. Default: latest."
+    },
+    "max_points": {
+     "default": 60,
+     "description": "Most recent periods in `points`.",
+     "maximum": 500,
+     "minimum": 1,
+     "type": "integer"
+    },
+    "start_date": {
+     "anyOf": [
+      {
+       "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Window start, e.g. '2019' or '2020-02'."
+    },
+    "wage_series_id": {
+     "description": "A wage LEVEL series from search_series: average hourly/weekly earnings (e.g. CES3000000003 manufacturing) or an Employment Cost Index (e.g. CIU2020000000000I). Not a rate or a percent-change series.",
+     "pattern": "^[A-Za-z0-9_.\\-]{2,40}$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "wage_series_id"
+   ],
+   "type": "object"
+  },
+  "output_schema": {
+   "description": "Result of ``real_wage_growth``.\n\nAttributes:\n    wage: The wage series and its citation link.\n    deflator: The price index used and its citation link.\n    frequency: Frequency of the comparison (the wage series' frequency).\n    base_period: Period whose prices ``real_wage`` is expressed in (latest common period).\n    latest: The most recent period with all three growth rates.\n    real_wage_rising: True when ``latest.real_pct_change_year_ago`` is above zero, i.e. pay\n        is outpacing prices over the past year.\n    window: Change over the whole requested window.\n    points: Per-period values, oldest first (most recent ``max_points``).\n    truncated: True when older periods were dropped from ``points``.\n    notes: Method choices and caveats (deflator variant, frequency alignment).",
+   "properties": {
+    "base_period": {
+     "type": "string"
+    },
+    "deflator": {
+     "description": "What a series measures and where it comes from.\n\nAttributes:\n    series_id: Official ID at the source; pass it to other tools.\n    source: Publishing system (BLS API or FRED).\n    title: Official title.\n    units: Units of the raw values.\n    frequency: Observation frequency in words.\n    seasonal_adjustment: ``SA``, ``NSA``, ``SAAR`` etc., or ``unknown``.\n    geography: Area covered, when known.\n    url: Human-readable page for the series at the source.\n    notes: Source notes (detailed format only).\n    stale_as_of: Set only when the source could not be reached and the data is the\n        gateway's cached copy: the UTC time that copy was fetched.",
+     "properties": {
+      "frequency": {
+       "description": "e.g. 'monthly', 'quarterly', 'weekly'.",
+       "type": "string"
+      },
+      "geography": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "notes": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "seasonal_adjustment": {
+       "description": "SA = seasonally adjusted, NSA = not adjusted.",
+       "type": "string"
+      },
+      "series_id": {
+       "type": "string"
+      },
+      "source": {
+       "enum": [
+        "BLS",
+        "FRED"
+       ],
+       "type": "string"
+      },
+      "stale_as_of": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Null normally. When set, the source was unreachable and these values are the gateway's cached copy fetched at this UTC time; a newer release may exist, so say so."
+      },
+      "title": {
+       "type": "string"
+      },
+      "units": {
+       "description": "Units of the raw values, e.g. 'percent' or 'index 1982-84=100'.",
+       "type": "string"
+      },
+      "url": {
+       "description": "Cite this link when quoting the data.",
+       "type": "string"
+      }
+     },
+     "required": [
+      "series_id",
+      "source",
+      "title",
+      "units",
+      "frequency",
+      "seasonal_adjustment",
+      "url"
+     ],
+     "type": "object"
+    },
+    "frequency": {
+     "type": "string"
+    },
+    "latest": {
+     "anyOf": [
+      {
+       "description": "One period of a real-wage calculation.\n\nAttributes:\n    period: Period label (``2026-09``, ``2026-Q3``, ``2026``).\n    nominal_wage: Wage as published, in the wage series units.\n    nominal_pct_change_year_ago: Wage growth vs a year earlier, percent.\n    inflation_pct_change_year_ago: Price growth vs a year earlier, percent.\n    real_pct_change_year_ago: Inflation-adjusted wage growth, percent\n        (``(1 + nominal) / (1 + inflation) - 1``).\n    real_wage: Wage in dollars of ``base_period`` (prices held at that period's level).",
+       "properties": {
+        "inflation_pct_change_year_ago": {
+         "anyOf": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "nominal_pct_change_year_ago": {
+         "anyOf": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "nominal_wage": {
+         "anyOf": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "period": {
+         "type": "string"
+        },
+        "real_pct_change_year_ago": {
+         "anyOf": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "real_wage": {
+         "anyOf": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "period",
+        "nominal_wage",
+        "nominal_pct_change_year_ago",
+        "inflation_pct_change_year_ago",
+        "real_pct_change_year_ago",
+        "real_wage"
+       ],
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "notes": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "points": {
+     "items": {
+      "description": "One period of a real-wage calculation.\n\nAttributes:\n    period: Period label (``2026-09``, ``2026-Q3``, ``2026``).\n    nominal_wage: Wage as published, in the wage series units.\n    nominal_pct_change_year_ago: Wage growth vs a year earlier, percent.\n    inflation_pct_change_year_ago: Price growth vs a year earlier, percent.\n    real_pct_change_year_ago: Inflation-adjusted wage growth, percent\n        (``(1 + nominal) / (1 + inflation) - 1``).\n    real_wage: Wage in dollars of ``base_period`` (prices held at that period's level).",
+      "properties": {
+       "inflation_pct_change_year_ago": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "nominal_pct_change_year_ago": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "nominal_wage": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "period": {
+        "type": "string"
+       },
+       "real_pct_change_year_ago": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "real_wage": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "required": [
+       "period",
+       "nominal_wage",
+       "nominal_pct_change_year_ago",
+       "inflation_pct_change_year_ago",
+       "real_pct_change_year_ago",
+       "real_wage"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "real_wage_rising": {
+     "anyOf": [
+      {
+       "type": "boolean"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "truncated": {
+     "type": "boolean"
+    },
+    "wage": {
+     "description": "What a series measures and where it comes from.\n\nAttributes:\n    series_id: Official ID at the source; pass it to other tools.\n    source: Publishing system (BLS API or FRED).\n    title: Official title.\n    units: Units of the raw values.\n    frequency: Observation frequency in words.\n    seasonal_adjustment: ``SA``, ``NSA``, ``SAAR`` etc., or ``unknown``.\n    geography: Area covered, when known.\n    url: Human-readable page for the series at the source.\n    notes: Source notes (detailed format only).\n    stale_as_of: Set only when the source could not be reached and the data is the\n        gateway's cached copy: the UTC time that copy was fetched.",
+     "properties": {
+      "frequency": {
+       "description": "e.g. 'monthly', 'quarterly', 'weekly'.",
+       "type": "string"
+      },
+      "geography": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "notes": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "seasonal_adjustment": {
+       "description": "SA = seasonally adjusted, NSA = not adjusted.",
+       "type": "string"
+      },
+      "series_id": {
+       "type": "string"
+      },
+      "source": {
+       "enum": [
+        "BLS",
+        "FRED"
+       ],
+       "type": "string"
+      },
+      "stale_as_of": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Null normally. When set, the source was unreachable and these values are the gateway's cached copy fetched at this UTC time; a newer release may exist, so say so."
+      },
+      "title": {
+       "type": "string"
+      },
+      "units": {
+       "description": "Units of the raw values, e.g. 'percent' or 'index 1982-84=100'.",
+       "type": "string"
+      },
+      "url": {
+       "description": "Cite this link when quoting the data.",
+       "type": "string"
+      }
+     },
+     "required": [
+      "series_id",
+      "source",
+      "title",
+      "units",
+      "frequency",
+      "seasonal_adjustment",
+      "url"
+     ],
+     "type": "object"
+    },
+    "window": {
+     "anyOf": [
+      {
+       "description": "Cumulative change between the first and last period of the window.\n\nAttributes:\n    start_period: First period with both wage and price data.\n    end_period: Last period with both wage and price data.\n    nominal_pct_change: Wage change over the window, percent.\n    inflation_pct_change: Price change over the window, percent.\n    real_pct_change: Inflation-adjusted wage change over the window, percent.",
+       "properties": {
+        "end_period": {
+         "type": "string"
+        },
+        "inflation_pct_change": {
+         "type": "number"
+        },
+        "nominal_pct_change": {
+         "type": "number"
+        },
+        "real_pct_change": {
+         "type": "number"
+        },
+        "start_period": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "start_period",
+        "end_period",
+        "nominal_pct_change",
+        "inflation_pct_change",
+        "real_pct_change"
+       ],
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "wage",
+    "deflator",
+    "frequency",
+    "base_period",
+    "latest",
+    "real_wage_rising",
+    "window",
+    "points",
+    "truncated"
+   ],
+   "type": "object"
+  },
+  "toolset": "compute"
+ },
+ "search_series": {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Find official BLS/FRED series IDs for a topic and place. Start here.\n\n## Usage\nCall this first whenever you do not already have a series ID, then pass the chosen\n`series_id` to `get_latest` (current value) or `get_series` (history).\nCovers employment and payrolls (CES), unemployment and labor force (CPS, LAUS for\nstates), wages and hours, prices (CPI by item and metro), job openings, hires and\nquits (JOLTS), employment cost (ECI), productivity, and FRED macro series (GDP,\ninterest rates, mortgage rates, jobless claims).\n\n## Tips\n- Put the measure in `query` and the place in `geography`.\n- Prefer `match: \"catalog\"` results: curated and validated. `fred_search` results are\n  FRED full-text matches; check the title and units before using them.\n- Seasonally adjusted (SA) series are best for month-to-month comparisons; NSA for\n  comparing the same month across years.\n\n## Output format\n`results` best first, each with series_id, title, units, frequency,\nseasonal_adjustment, geography, latest_observation and match. `notes` explains\nwhether FRED was also searched.\n\nIMPORTANT: Never guess or construct series IDs yourself, because made-up IDs return\nwrong or no data. Always take IDs from this tool's results.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "geography": {
+     "anyOf": [
+      {
+       "maxLength": 100,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Optional place: a state ('Texas'), metro ('Chicago'), or census region ('South'). Omit for national data."
+    },
+    "limit": {
+     "default": 10,
+     "maximum": 25,
+     "minimum": 1,
+     "type": "integer"
+    },
+    "query": {
+     "description": "What to measure, in plain words: 'unemployment rate', 'average hourly earnings manufacturing', 'job openings', 'CPI shelter', 'initial jobless claims', '30-year mortgage rate'.",
+     "maxLength": 200,
+     "minLength": 2,
+     "type": "string"
+    }
+   },
+   "required": [
+    "query"
+   ],
+   "type": "object"
+  },
+  "output_schema": {
+   "description": "Result of ``search_series``.\n\nAttributes:\n    query: The query as received.\n    results: Candidates, best first.\n    fred_searched: Whether FRED full-text search was used in addition to the catalog.\n    notes: Why FRED was or was not searched, and other guidance.",
+   "properties": {
+    "fred_searched": {
+     "type": "boolean"
+    },
+    "notes": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "query": {
+     "type": "string"
+    },
+    "results": {
+     "items": {
+      "description": "A candidate series for a search query.\n\nAttributes:\n    series_id: Pass to ``get_latest`` / ``get_series`` / ``describe_series``.\n    source: Publishing system.\n    title: Official title.\n    units: Units of the values.\n    frequency: Observation frequency in words.\n    seasonal_adjustment: ``SA`` / ``NSA`` etc.\n    geography: Area covered, when known.\n    latest_observation: Latest period with data, when known.\n    match: ``catalog`` = curated and validated; ``fred_search`` = FRED full-text match.",
+      "properties": {
+       "frequency": {
+        "type": "string"
+       },
+       "geography": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "latest_observation": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "match": {
+        "enum": [
+         "catalog",
+         "fred_search"
+        ],
+        "type": "string"
+       },
+       "seasonal_adjustment": {
+        "type": "string"
+       },
+       "series_id": {
+        "type": "string"
+       },
+       "source": {
+        "enum": [
+         "BLS",
+         "FRED"
+        ],
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "units": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "series_id",
+       "source",
+       "title",
+       "units",
+       "frequency",
+       "seasonal_adjustment",
+       "match"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    }
+   },
+   "required": [
+    "query",
+    "results",
+    "fred_searched"
+   ],
+   "type": "object"
+  },
+  "toolset": "core"
+ }
+}
